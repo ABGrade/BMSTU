@@ -1,0 +1,189 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+
+Среда разработки: PyCharm 2023 community edition
+
+Язык разработки: python 3.10
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item 
+    os - для доступа к файлам системы и создания папок/файлов
+    URL: https://docs-python.ru/standart-library/modul-os-python/
+    \item 
+    numpy - для удобной и быстрой работы с массивами, сохранения промежуточных данных и связи их с другими библиотеками
+    URL: https://numpy.org/doc/
+    \item 
+    re - для выделения слов
+    URL: https://docs-python.ru/standart-library/modul-re-python/
+    \item 
+    collections.defaultdict - для создания начальных словарей в формате (строка : число)
+    URL: https://docs-python.ru/standart-library/modul-collections-python/klass-defaultdict-modulja-collections/
+    \item 
+    bs4.BeautifulSoup - для чтения html файлов
+    URL: https://www.crummy.com/software/BeautifulSoup/bs4/doc.ru/bs4ru.html
+    \item 
+    docx.Document - для чтения docx файлов
+    URL: https://docs-python.ru/packages/modul-python-docx-python/klass-document/
+    \item 
+    odf.opendocument.load и odf.text.P - для чтения odt файлов
+    URL: https://pypi.org/project/odfpy/
+    \item 
+    pymorphy3 - для выделения начальных форм слова
+    URL: https://pypi.org/project/pymorphy3/
+    \item 
+    matplotlib.pyplot - для отображения графиков
+    URL: https://matplotlib.org/stable/index.html
+    \item 
+    seaborn - для построения графиков
+    URL: https://seaborn.pydata.org/
+    \item 
+    sklearn.metrics.pairwise.cosine similarity - косинусная мера близости
+    URL: https://scikit-learn.org/stable/
+\end{itemize}
+
+\section{Подготовка к анализу}
+
+Основные функции программы preproc.py, которая подготавливает данные для их дальнейшего анализа.
+
+\subsection{Построение векторов}
+
+Функция создания вектора
+
+\begin{lstlisting}[label=b-vector, caption={Построение векторов (обычного и нормализированного для одного документа)}]
+    def build_vectors(text):
+        morph = pymorphy3.MorphAnalyzer()
+        words = list(word.lower() for word in re.split(r"[ -.,!?():;\n\t\r]+", text) if word)
+        word_count = defaultdict(int)
+        word_count_norm = defaultdict(int)
+        for word in words:
+            word_count[word] += 1
+            word_count_norm[morph.normal_forms(word)[0]] += 1
+        return word_count, word_count_norm
+\end{lstlisting}
+
+\subsection{Рекурсивное чтение файлов, создания векторов и запись в файл}
+
+Основная функция preproc.py, выполняющая все необходимые действия (чтение, создание, запись) для получения готовых к анализу векторов.
+
+\begin{lstlisting}[label=b-vector-all, caption={Получение всех векторов}]
+    def build_vectors_recursively(directory):
+        for folder in os.listdir(directory):
+            folder_path = os.path.join(directory, folder)
+            vectors_dir_path = os.path.join(folder_path, "vectors")
+            norm_vectors_dir_path = os.path.join(folder_path, "norm_vectors")
+
+            if not os.path.exists(vectors_dir_path):
+                os.mkdir(vectors_dir_path)
+
+            if not os.path.exists(norm_vectors_dir_path):
+                os.mkdir(norm_vectors_dir_path)
+
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                if file_path.endswith(EXT):
+                    text = ext_choice(file_path)
+                    if text is None:
+                        print(f"None pointer return for file: {file_path}\n")
+                        continue
+                    vec, vec_norm = build_vectors(text)
+                    write_into_file(vec, vectors_dir_path, filename)
+                    write_into_file(vec_norm, norm_vectors_dir_path, filename)
+\end{lstlisting}
+
+\section{Метрики}
+
+Метод Жаккара и косинусная мера близости.
+
+\subsection{Метод Жаккара}
+
+Ранее уже рассмотренный метод Жаккара: См. \ref{jac_sim}
+
+\begin{lstlisting}[label=jac-func, caption={Метод Жаккара}]
+    def jacquard_similarity(v1: dict, v2: dict):
+        a = set(v1.keys())
+        b = set(v2.keys())
+        shared = a.intersection(b)
+        total = a.union(b)
+        return len(shared) / len(total)
+\end{lstlisting}
+
+\subsection{Косинусная мера близости}
+
+Ранее уже рассмотренная мера близости: См. \ref{cos_sim}
+
+\begin{lstlisting}[label=cos-func, caption={Косинусная мера близости}]
+    def cosine_metric(v1: dict, v2: dict):
+        keys = sorted(set(v1.keys()).union(v2.keys()))
+        vector1 = np.array([v1.get(key, 0) for key in keys])
+        vector2 = np.array([v2.get(key, 0) for key in keys])
+        return cosine_similarity([vector1], [vector2])[0][0]
+\end{lstlisting}
+
+\section{Анализ}
+
+\subsection{Матрица близости}
+
+Матрица близости - это матрица, которая в каждой ячейке (i, j) содержит сравнительный анализ двух векторов.
+
+\begin{lstlisting}[label=cor_matr, caption={Получение матрицы близости}]
+    def get_corr_matrix(vectors):
+        vecs_len = len(vectors)
+        na = np.zeros((vecs_len, vecs_len))
+        nb = np.zeros((vecs_len, vecs_len))
+        for i in range(vecs_len):
+            for j in range(vecs_len):
+                na[i][j] = metrics.jacquard_similarity(vectors[i], vectors[j])
+                nb[i][j] = metrics.cosine_metric(vectors[i], vectors[j])
+        return na, nb
+\end{lstlisting}
+
+\subsection{Карта сравнения}
+
+На основе матрицы, полученной из предыдущей функции, строится график в seaborn. Данный график является результатом всей работы.
+
+\begin{lstlisting}[label=heatmaps, caption={Получение результирующих графиков}]
+    def build_heatmaps_recursive(directory):
+        vectors = list()
+        norm_vectors = list()
+        files = list()
+        for folder in os.listdir(directory):
+            folder_path = os.path.join(directory, folder)
+            vectors_dir_path = os.path.join(folder_path, "vectors")
+            norm_vectors_dir_path = os.path.join(folder_path, "norm_vectors")
+            for filename in os.listdir(vectors_dir_path):
+                files.append(filename)
+                file_path = os.path.join(vectors_dir_path, filename)
+                file_path_norm = os.path.join(norm_vectors_dir_path, filename)
+                vectors.append(get_vectors(file_path))
+                norm_vectors.append(get_vectors(file_path_norm))
+
+        matrix_jacquard, matrix_cosine = get_corr_matrix(vectors)
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_jacquard, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu")
+        plt.savefig(os.path.join(RES_DIR, "Heatmap Jac.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_cosine, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu")
+        plt.savefig(os.path.join(RES_DIR, "Heatmap cos.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        matrix_jacquard, matrix_cosine = get_corr_matrix(norm_vectors)
+        sea.heatmap(matrix_jacquard, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu")
+        plt.savefig(os.path.join(RES_DIR, "Heatmap Jac norm.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_cosine, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu")
+        plt.savefig(os.path.join(RES_DIR, "Heatmap cos norm.png"), dpi=100)
+\end{lstlisting}
+
+\section*{Вывод}
+
+В результате получаем 4 графика (на каждую метрику отводится нормализированный и не нормализированный вектор). 
+Эти графики в явном виде отображают близость каждого файла.
+
+\clearpage

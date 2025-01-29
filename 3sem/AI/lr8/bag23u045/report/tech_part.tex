@@ -1,0 +1,183 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+Для реализации программного обеспечения были использованы следующие средства:
+
+\begin{itemize}
+    \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm}
+    \item язык разработки Python 3.10 \cite{lib:python}
+\end{itemize}
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item 
+    os - для доступа к файлам системы и создания папок/файлов \cite{lib:os}
+    \item 
+    numpy - для удобной и быстрой работы с массивами, сохранения промежуточных данных и связи их с другими библиотеками \cite{lib:numpy}
+    \item 
+    re - для выделения слов \cite{lib:re}
+    \item 
+    collections.defaultdict - для создания начальных словарей в формате (строка : число) \cite{lib:defaultdict}
+    \item 
+    bs4.BeautifulSoup - для чтения html файлов \cite{lib:bs4}
+    \item 
+    docx.Document - для чтения docx файлов \cite{lib:docx}
+    \item 
+    odf.opendocument.load и odf.text.P - для чтения odt файлов \cite{lib:odf}
+    \item 
+    pymorphy3 - для выделения начальных форм слова \cite{lib:pymorphy3}
+    \item 
+    matplotlib.pyplot - для отображения графиков \cite{lib:matplotlib}
+    \item 
+    seaborn - для построения графиков \cite{lib:seaborn}
+    \item 
+    sklearn.metrics.pairwise.cosine similarity - косинусная мера близости \cite{lib:sklearn}
+    \item 
+    sklearn.decomposition.PCA - метод главных компонент \cite{lib:sklearn}
+    \item 
+    sklearn.metrics.jaccard\_score - метод Жаккарда \cite{lib:sklearn}
+\end{itemize}
+
+\section{Подготовка к анализу}
+
+\section{Метрики}
+
+\subsection{Косинусная мера близости}
+
+\begin{lstlisting}[label=cos-func, caption={Косинусная мера близости}]
+    def cosine_metric(v1, v2):
+        return cosine_similarity([v1], [v2])[0][0]
+\end{lstlisting}
+
+\subsection{Метод Жаккарда}
+
+Особенностью этой функции можно назвать бинаризацию вектора, полученный послеработы метода PCA. 
+Так как после применения PCA появляются как положительные, так и отрицательные значения.
+
+\begin{lstlisting}[label=jac-list, caption={Метод Жаккарда}]
+    def jac_metric(v1, v2, to_binary=None):
+        if to_binary:
+            v1_binary = [int(value >= 0) for value in v1]
+            v2_binary = [int(value >= 0) for value in v2]
+            return jaccard_score(v1_binary, v2_binary)
+        else:
+            return jaccard_score(v1, v2, average='macro')
+\end{lstlisting}
+
+\subsection{Метод главных компонент}
+
+\begin{lstlisting}[label=pca-list, caption={Метод главных компонент}]
+    def call_pca(v1s, v2s):
+        sk_pca = PCA()
+
+        all_keys_v1 = set().union(*[vec.keys() for vec in v1s])
+        all_keys_v2 = set().union(*[vec.keys() for vec in v2s])
+
+        v1s_values = [[v1.get(key, 0) for key in all_keys_v1] for v1 in v1s]
+        v2s_values = [[v2.get(key, 0) for key in all_keys_v2] for v2 in v2s]
+
+        v1_transformed = sk_pca.fit_transform(v1s_values)
+        v2_transformed = sk_pca.fit_transform(v2s_values)
+
+        return v1_transformed, v2_transformed, v1s_values, v2s_values
+\end{lstlisting}
+
+\section{Анализ}
+
+\subsection{Матрица близости}
+
+Матрица близости - это матрица, которая в каждой ячейке (i, j) содержит сравнительный анализ двух векторов.
+
+\begin{lstlisting}[label=cor_matr, caption={Получение матрицы близости}]
+    def get_corr_matrix(vectors, trans=None):
+        vecs_len = len(vectors)
+        na = np.zeros((vecs_len, vecs_len))
+        nb = np.zeros((vecs_len, vecs_len))
+        nc = np.zeros((vecs_len, vecs_len))
+        for i in range(vecs_len):
+            for j in range(vecs_len):
+                na[i][j] = metrics.pearson_metric(vectors[i], vectors[j])
+                nb[i][j] = metrics.cosine_metric(vectors[i], vectors[j])
+                nc[i][j] = metrics.jac_metric(vectors[i], vectors[j], trans)
+        return na, nb, nc
+\end{lstlisting}
+
+\subsection{Постройка тепловых карт и сравнение матриц близостей}
+
+\begin{lstlisting}[label=heatmaps_build, caption={Функция вывода результатов}]
+    def create_heatmaps(vec, n_vec, old_vec, old_n_vec, files):
+        matrix_pears, matrix_cosine, matrix_jac = get_corr_matrix(vec, 1)
+        matrix_pears_2, matrix_cosine_2, matrix_jac_2 = get_corr_matrix(old_vec)
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_cosine, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapCos.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_pears, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapPearson.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_jac, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapJac.png"), dpi=100)
+        plt.clf()
+
+        matrix_pears, matrix_cosine, matrix_jac = get_corr_matrix(n_vec, 1)
+        matrix_pears_2, matrix_cosine_2, matrix_jac_2 = get_corr_matrix(old_n_vec)
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_cosine, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapCosNorm.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_pears, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapPearsonNorm.png"), dpi=100)
+        plt.clf()
+
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(matrix_jac, xticklabels=files, yticklabels=files, square=True, linewidths=.3, cmap="YlGnBu",
+                    annot=True, annot_kws={"size": 4}, fmt=".2f")
+        plt.savefig(os.path.join(RES_DIR, "HeatmapJacNorm.png"), dpi=100)
+        plt.clf()
+\end{lstlisting}
+
+\subsection{Функция постройки всех тепловых карт}
+
+На основе матрицы, полученной из предыдущей функции, строится график в seaborn. Данный график является результатом всей работы.
+
+\begin{lstlisting}[label=main, caption={Функция main}]
+    def build_heatmaps_recursive(directory):
+    vectors = list()
+    norm_vectors = list()
+    files = list()
+    for folder in os.listdir(directory):
+        folder_path = os.path.join(directory, folder)
+        vectors_dir_path = os.path.join(folder_path, "vectors")
+        norm_vectors_dir_path = os.path.join(folder_path, "norm_vectors")
+        for filename in os.listdir(vectors_dir_path):
+            files.append(filename)
+            file_path = os.path.join(vectors_dir_path, filename)
+            file_path_norm = os.path.join(norm_vectors_dir_path, filename)
+            vectors.append(get_vectors(file_path))
+            norm_vectors.append(get_vectors(file_path_norm))
+
+    v1_transformed, v2_transformed, v1s_values, v2s_values = metrics.call_pca(vectors, norm_vectors)
+    create_heatmaps(v1_transformed, v2_transformed, v1s_values, v2s_values, files)
+\end{lstlisting}
+
+\section*{Вывод}
+
+В разделе были рассмотрены средства разработки программы, а также библиотеки, использованные для обработки данных, работы с файлами и построения графиков. 
+Описаны функции для расчета различных метрик (косинусная мера близости, метод Жаккарда) и метода главных компонент (PCA). 
+На основе этих методов были построены матрицы близости до и после применения PCA, визуализированные в виде тепловых карт. 
+В результате работы получены три графика, отражающие степень близости между файлами, как с обычными, так и с нормализованными векторами.
+
+\clearpage

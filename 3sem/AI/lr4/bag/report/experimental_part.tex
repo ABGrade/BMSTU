@@ -1,0 +1,95 @@
+\chapter{Исследовательская часть}
+
+Цель исследования — обнаружить на фотографии лошадей и ромбы.
+
+\section{Оборудование}
+
+Характеритстики ноутбука:
+\begin{itemize}
+	\item процессор intel-core i5-12500H \cite{lib:intel}
+	\item ОЗУ 16 Гб DDR4
+	\item ОС Windows 11 \cite{lib:windows}
+\end{itemize}
+
+\section{Обнаруженные ромбы}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/1.jpg}
+    \caption{Изображение 1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/5.jpg}
+    \caption{Изображение 5}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/10.jpg}
+    \caption{Изображение 10}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/11.jpg}
+    \caption{Изображение 11}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/12.jpg}
+    \caption{Изображение 12}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/13.jpg}
+    \caption{Изображение 13}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/15.jpg}
+    \caption{Изображение 15}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/16.jpg}
+    \caption{Изображение 16}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/17.jpg}
+    \caption{Изображение 17}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/diamonds/19.jpg}
+    \caption{Изображение 19}
+\end{figure}
+
+\section{Обнаруженные лошади}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr4/bag/report/images/horses/1.jpg}
+    \caption{Изображение 1}
+\end{figure}
+
+\section{Вывод}
+
+Полученные изображения в общем случае показывают состоятельность данных метод, 
+хотя и с далеко не идеальными результатами, часть из которых можно объяснить тем, 
+что, например, для поиска лошадей используется лишь часть изображения подходящего
+для cv2 формата (в данном случае 416х416), что не дает полной картины.
+
+Что касается ромбов, то результаты далеки от идеальных, многие объекты были ошибочно обнаружены, 
+а в некоторых случаях очевидные ромбы (с точки зрения человека) не были обнаружены, 
+хотя правильные результататы, в некоторых случаях, были получены.
+
+\clearpage
