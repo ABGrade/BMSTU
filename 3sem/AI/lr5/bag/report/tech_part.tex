@@ -1,0 +1,99 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+Для реализации программного обеспечения были использованы следующие средства:
+
+\begin{itemize}
+    \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm}
+    \item язык разработки Python 3.10 \cite{lib:python}
+\end{itemize}
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item numpy — для быстрой работы с массивами, сохранения промежуточных данных и связи их с другими библиотеками \cite{lib:numpy}
+    \item matplotlib — для отображения графиков \cite{lib:matplotlib}
+    \item pathlib — доступ к файлам системы \cite{lib:pathlib}
+    \item tensorflow — для реализации нейросетей \cite{lib:tensorflow}
+    \item sklearn — для работы с данными \cite{lib:sklearn}
+\end{itemize}
+
+\section{Функции}
+
+\begin{lstlisting}[caption={Нормализация данных}]
+    def normalize_data(image, label):
+        image = tf.cast(image, tf.float32) / 255.0
+        label = to_categorical(label, num_classes=10)
+        return image, label
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Разделение данных}]
+    def split_dataset(dataset, train_size):
+        dataset_list = list(dataset.unbatch().as_numpy_iterator())
+        images, labels = zip(*dataset_list)
+        images = np.array(images)
+        labels = np.array(labels)
+
+        x_train, x_val, y_train, y_val = train_test_split(images, labels, train_size=train_size)
+        train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(BATCH_SIZE)
+        val_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(BATCH_SIZE)
+        return train_ds, val_ds
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Создание модели}]
+    def build_model(hidden_layers):
+        model = models.Sequential()
+        model.add(layers.Input(shape=(28, 28, 1))) 
+        model.add(layers.Flatten())
+
+        for _ in range(hidden_layers):
+            model.add(layers.Dense(128, activation='relu'))
+
+        model.add(layers.Dense(10, activation='softmax'))
+        return model
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Обучение и оценка модели}]
+    def train_and_evaluate(train_ds, val_ds, test_ds, hidden_layers):
+        model = build_model(hidden_layers)
+        model.compile(optimizer='adam', loss=KLDivergence(), metrics=['accuracy'])
+        history = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, verbose=0)
+        test_loss, test_acc = model.evaluate(test_ds, verbose=0)
+        return history, test_loss, test_acc
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Функция расчета размера выборки по неравенству Чебышева}]
+    def chebyshev_sample_size(epsilon, delta, sample_variance):
+        if epsilon <= 0 or delta <= 0 or delta >= 1:
+            raise ValueError("Epsilon and delta must be greater than zero and delta must be less than one.")
+
+        n = math.ceil(sample_variance / (epsilon ** 2 * delta))
+        return n
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Визуализизация результатов обучения}]
+    def plot_results(results):
+        for hidden_layers in HIDDEN_LAYER_CONFIGS:
+            plt.figure(figsize=(10, 6))
+            for split in DATA_SPLITS:
+                res = [r for r in results if r['hidden_layers'] == hidden_layers and r['split'] == split]
+                if res:
+                    acc = res[0]['history'].history['accuracy']
+                    val_acc = res[0]['history'].history['val_accuracy']
+                    plt.plot(acc, label=f'Train Acc (split {split})')
+                    plt.plot(val_acc, linestyle='--', label=f'Val Acc (split {split})')
+
+            title = f'Results for {hidden_layers} hidden layers'
+            output_file = IMG_DIR / f'{title}.png'
+
+            plt.title(title)
+            plt.xlabel('Epoch')
+            plt.ylabel('Accuracy')
+            plt.legend()
+            plt.savefig(output_file)
+\end{lstlisting}
+
+\section*{Вывод}
+
+Были разработаны методы исследования влияние архитектуры нейронной сети и размера обучающей выборки на эффективность классификации.
+
+\clearpage

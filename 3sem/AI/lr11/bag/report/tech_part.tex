@@ -1,0 +1,156 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+Для реализации программного обеспечения были использованы следующие средства:
+
+\begin{itemize}
+    \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm}
+    \item язык разработки Python 3.10 \cite{lib:python}
+\end{itemize}
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item os — доступ к функциям ОС \cite{lib:os}
+    \item pathlib — доступ к файлам системы \cite{lib:pathlib}
+    \item collection — хранение цепей (n-грамма : варианты продолжения) \cite{lib:collections}
+    \item itertools — создание вариаций предложений из массива слов \cite{lib:itertools}
+    \item random — генерация случайных чисел \cite{lib:random}
+    \item re — для выделения слов \cite{lib:re}
+    \item beautifulsoup — для чтения html файлов \cite{lib:bs4} https://www.crummy.com/software/BeautifulSoup/bs4/doc/
+    \item docx — для чтения docx файлов \cite{lib:docx} https://python-docx.readthedocs.io/en/latest/index.html
+    \item odf — для чтения odt файлов \cite{lib:odf} https://pypi.org/project/odfpy/
+\end{itemize}
+
+\section{Подготовка данных}
+
+\begin{lstlisting}[caption={Создание текстовых файлов для всех текстов}]
+    def build_texts(directory):
+        texts = list()
+        file_order = list()
+        for folder in os.listdir(directory):
+            folder_path = os.path.join(directory, folder)
+            texts_dir_path = os.path.join(folder_path, "texts")
+
+            if not os.path.exists(texts_dir_path):
+                os.mkdir(texts_dir_path)
+
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename)
+                if file_path.endswith(EXT):
+                    text = ext_choice(file_path)
+                    if text is None:
+                        print(f"None pointer return for file: {file_path}\n")
+                        continue
+                    file_order.append(file_path)
+                    texts.append(text)
+
+        for i, file in enumerate(file_order):
+            texts_dir_path = os.path.join(file, "..", "texts")
+            write_into_file(texts[i], texts_dir_path, file.split("\\")[-1])
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Запись текста в файл}]
+    def write_into_file(text, vector_dir, file_name):
+        file_name = os.path.splitext(file_name)[0] + ".txt"
+        file_path = os.path.join(vector_dir, file_name)
+        with open(file_path, "w", encoding="utf-8") as file:
+            text = text.strip()
+            for pattern, replacement in replacements.items():
+                text = re.sub(pattern, replacement, text)
+            file.write(f"{text}\n")
+\end{lstlisting}
+
+\section{Основные функции программы}
+
+\begin{lstlisting}[caption={Чтение текстов в массив}]
+    def read_texts(directory_path):
+        texts = []
+        for filepath in directory_path.rglob("texts/*.txt"):
+            with open(filepath, "r", encoding="utf-8") as file:
+                texts.append(file.read())
+        return texts
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Поиск самых популярных слов}]
+    def most_popular_words(texts, top_n=3):
+        all_words = defaultdict(int)
+        for text in texts:
+            words = [word.lower() for word in re.split(r"[-.,!?():;\n\t\r\s]+", text) if word]
+            for word in words:
+                all_words[word] += 1
+        all_words = sorted(all_words.items(), key=lambda item: item[1], reverse=True)
+        return [pair[0] for pair in all_words[:top_n]]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Создание цепи Маркова}]
+    def build_markov_chain(texts, n):
+        chain = defaultdict(list)
+        for text in texts:
+            tokens = [word.lower() for word in re.split(r"[-.,!?():;\n\t\r\s]+", text) if word]
+            ngrams = generate_ngrams(tokens, n)
+            for i in range(len(ngrams) - 1):
+                chain[ngrams[i]].append(ngrams[i + 1][-1])
+        return chain
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Генерация текста}]
+    def generate_text(chain, n, start_word, max_words=50):
+        current = find_start_state(chain, start_word)
+
+        if not current:
+            return ""
+
+        generated = list(current)
+        for _ in range(max_words len(generated)):
+            if current in chain:
+                next_word = random.choice(chain[current])
+                generated.append(next_word)
+                current = tuple(generated[-n:])
+            else:
+                break
+        return " ".join(generated)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Поиск начальной н-граммы}]
+    def find_start_state(chain, start_word):
+        for n_gram, next_states in chain.items():
+            if n_gram[0] == start_word:
+                return n_gram
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Исследование с предложениями из задания}]
+    def experiment_with_sentences(n):
+        builded = create_not_SVO(sentences[0])
+
+        chain = build_markov_chain(sentences, n)
+
+        for start_word in start_words:
+            generated_text = generate_text(chain, n, start_word, max_words=50)
+            output_file = RES_DIR / f"{n}_grams_SVO_generated.txt"
+            with open(output_file, "a", encoding="utf-8") as file:
+                text = f"начальное слово \"{start_word}\"\n {generated_text}\n"
+                file.write(text)
+
+        chain = build_markov_chain(builded, n)
+        for start_word in start_words:
+            generated_text = generate_text(chain, n, start_word, max_words=50)
+            output_file = RES_DIR / f"{n}_grams_NOT_SVO_generated.txt"
+            with open(output_file, "a", encoding="utf-8") as file:
+                text = f"начальное слово \"{start_word}\"\n {generated_text}\n"
+                file.write(text)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Создание вариаций предложений из слов}]
+    def create_not_SVO(sentence):
+        builded = set()
+        words = sentence.split()
+        for perm in permutations(words):
+            builded.add(" ".join(perm))
+        return builded
+\end{lstlisting}
+
+\section*{Вывод}
+
+Предствленнные программы решают задачу генерации текстов.
+
+\clearpage

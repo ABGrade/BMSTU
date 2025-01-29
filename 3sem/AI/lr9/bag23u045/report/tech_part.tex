@@ -1,0 +1,153 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+Для реализации программного обеспечения были использованы следующие средства:
+
+\begin{itemize}
+    \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm}
+    \item язык разработки Python 3.10 \cite{lib:python}
+\end{itemize}
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item os — для доступа к файлам системы и создания папок/файлов \cite{lib:os}
+    \item numpy — для быстрой работы с массивами, сохранения промежуточных данных и связи их с другими библиотеками \cite{lib:numpy}
+    \item matplotlib.pyplot — для отображения графиков \cite{lib:matplotlib}
+    \item seaborn — для построения графиков \cite{lib:seaborn}
+    \item pathlib.Path — доступ к файлам системы \cite{lib:pathlib}
+    \item sklearn — методы кластеризации \cite{lib:sklearn}
+    \item scipy — расчет средних внутрикластреных и межкластерных расстояний \cite{lib:scipy}
+    \item fcmeans — работы с методом кластеризации cmeans \cite{lib:fcmeans}
+\end{itemize}
+
+\section{Функции}
+
+\begin{lstlisting}[caption={Загрузка векторов документов}]
+    def load_vectors_from_directory(base_dir):
+        vectors = []
+        files = []
+        for file_path in base_dir.rglob('vectors/*.txt'):
+            files.append(file_path.name)
+            vector = np.loadtxt(file_path)
+            vectors.append(vector)
+        return np.vstack(vectors), files
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Кластерный показатель для kmeans}]
+    def kmeans_clustering_wcss_analyz(vectors):
+    wcss = []
+    for i in range(MIN_CLUSTERS, MAX_CLUSTERS):
+        kmeans = KMeans(n_clusters=i, init="kmeans++", random_state=1)
+        kmeans.fit(vectors)
+        wcss.append(kmeans.inertia_)
+    return [wcss, MIN_CLUSTERS, MAX_CLUSTERS]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Внутрикластерное и межкластерное расстояние для kmeans}]
+    def kmeans_clustering_distance_analyze(vectors):
+    inner_distances = []
+    outer_distances = []
+    
+    for i in range(MIN_CLUSTERS, MAX_CLUSTERS):
+        kmeans = KMeans(n_clusters=i, init="kmeans++", random_state=1)
+        kmeans.fit(vectors)
+        
+        intra_distance_list = []
+        for j in range(i):
+            cluster_points = vectors[kmeans.labels_ == j]
+            if len(cluster_points) > 0:
+                intra_distance_list.append(
+                    np.linalg.norm(cluster_points  kmeans.cluster_centers_[j], axis=1).mean()
+                )
+        if intra_distance_list:
+            inner_distances.append(np.mean(intra_distance_list))
+        else:
+            inner_distances.append(0)
+        
+        pairwise_distances = np.linalg.norm(
+            kmeans.cluster_centers_[:, np.newaxis]  kmeans.cluster_centers_, axis=2
+        )
+        if np.any(pairwise_distances > 0):
+            inter_distance = np.mean(pairwise_distances[pairwise_distances > 0])
+        else:
+            inter_distance = 0
+        outer_distances.append(inter_distance)
+    
+    return [inner_distances, outer_distances, MIN_CLUSTERS, MAX_CLUSTERS]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Кластерный показатель для cmeans}]
+    def cmeans_clustering_wcss_analyz(vectors):
+    wcss = []
+    for i in range(MIN_CLUSTERS, MAX_CLUSTERS):
+        fcm = FCM(n_clusters=i, m=2.0, max_iter=150, error=1e-6, random_state=1)
+        fcm.fit(vectors)
+        
+        centers = fcm.centers
+        membership = fcm.u 
+        distance = np.linalg.norm(vectors[:, np.newaxis] centers, axis=2) 
+        weighted_distance = np.sum(membership ** 2 * distance ** 2)
+        wcss.append(weighted_distance)
+    
+    return [wcss, MIN_CLUSTERS, MAX_CLUSTERS]
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Внутрикластерное и межкластерное расстояние для cmeans}]
+    pass
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Дендрограмма иерархической кластеризации}]
+    def hierarchical_clustering_analyze(vectors, method='ward'):
+    linkage_matrix = linkage(vectors, method=method)
+    dendrogram(linkage_matrix)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Внутрикластерное и межкластерное расстояние для иерархической класетризации}]
+    def analyze_cluster_distances(vectors, method='ward', metric='euclidean', max_clusters=10):
+    linkage_matrix = linkage(vectors, method=method, metric=metric)
+
+    intra_cluster_distances = []
+    inter_cluster_distances = []
+
+    for num_clusters in range(2, max_clusters + 1):
+        cluster_labels = fcluster(linkage_matrix, num_clusters, criterion='maxclust')
+        intra_dist = []
+        for cluster_id in np.unique(cluster_labels):
+            cluster_points = vectors[cluster_labels == cluster_id]
+            if len(cluster_points) > 1: 
+                intra_dist.append(pdist(cluster_points, metric=metric).mean())
+        intra_cluster_distances.append(np.mean(intra_dist) if intra_dist else 0)
+        inter_dist = []
+        unique_clusters = np.unique(cluster_labels)
+        for i, cluster_i in enumerate(unique_clusters):
+            for j, cluster_j in enumerate(unique_clusters):
+                if i < j: 
+                    cluster_i_points = vectors[cluster_labels == cluster_i]
+                    cluster_j_points = vectors[cluster_labels == cluster_j]
+                    inter_dist.append(cdist(cluster_i_points, cluster_j_points, metric=metric).mean())
+        inter_cluster_distances.append(np.mean(inter_dist) if inter_dist else 0)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Визуализация кластеров}]
+    def visualize_clusters(data, labels, title, name):
+    pca = PCA(n_components=2)
+    reduced_data = pca.fit_transform(data)
+    plt.figure(figsize=(10, 8))
+    sea.scatterplot(x=reduced_data[:, 0], y=reduced_data[:, 1], hue=labels, palette="viridis", s=50)
+    plt.title(title)
+    plt.xlabel("PCA Component 1")
+    plt.ylabel("PCA Component 2")
+    plt.legend()
+    plt.grid(True)
+    output_path = CLUSTERS / f"{title} {name}.png"
+    output_path.parent.mkdir(exist_ok=True, parents=True)
+    plt.savefig(output_path)
+\end{lstlisting}
+
+\section*{Вывод}
+
+В этой части разработаны методы для оценки оптимального количества кластеров с использованием различных методов кластеризации, 
+таких как kmeans, cmeans и иерархическая кластеризация. Написаны функции для отображения самих кластеров, так и для расчета и отображения изменения
+внутрикластреного и межкластерного расстояния. 
+
+\clearpage

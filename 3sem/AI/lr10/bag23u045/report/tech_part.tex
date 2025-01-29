@@ -1,0 +1,150 @@
+\chapter{Технологическая часть}
+
+\section{Средства написания программы}
+Для реализации программного обеспечения были использованы следующие средства:
+
+\begin{itemize}
+    \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm}
+    \item язык разработки Python 3.10 \cite{lib:python}
+\end{itemize}
+	
+Используемые библиотеки:
+\begin{itemize}
+    \item os — для доступа к файлам системы и создания папок/файлов \cite{lib:os}
+    \item numpy — для быстрой работы с массивами, сохранения промежуточных данных и связи их с другими библиотеками \cite{lib:numpy}
+    \item matplotlib.pyplot — для отображения графиков \cite{lib:matplotlib}
+    \item seaborn — для построения графиков \cite{lib:seaborn}
+    \item sklearn.metrics.pairwise.cosine\_similarity — косинусная мера близости \cite{lib:sklearn}
+    \item sklearn.metrics.jaccard\_score — метод Жаккарда \cite{lib:sklearn}
+    \item pandas — все использованные статистические функции \cite{lib:pandas}
+    \item pathlib.Path — доступ к файлам системы \cite{lib:pathlib}
+\end{itemize}
+
+\section{Загрузка векторов документов}
+
+\begin{lstlisting}[label=load_vecs, caption={Загрузка векторов документов}]
+    def load_vectors_from_directory(base_dir):
+        vectors = []
+        files = []
+        for file_path in base_dir.rglob('vectors/*.txt'):
+            files.append(file_path.name)
+            vector = np.loadtxt(file_path)
+            vectors.append(vector)
+        return np.vstack(vectors), files
+\end{lstlisting}
+
+\section{Выбор признаков}
+
+\begin{lstlisting}[label=del_mean, caption={Выбор признаков по математическому ожиданию}]
+    def to_del_by_mean(df: pd.DataFrame):
+        threshold = 0.04
+        df_mean = df.mean()
+        list_to_remove = df_mean[df_mean <= threshold].index.to_list()
+        return list_to_remove
+\end{lstlisting}
+
+\begin{lstlisting}[label=del_var, caption={Выбор признаков по дисперсии}]
+    def to_del_by_dispersion(df: pd.DataFrame):
+        threshold = 0.99
+        df_var = df.var()
+        mean_df_var = df_var.mean()
+        lower_bound = mean_df_var * (1 - threshold)
+        upper_bound = mean_df_var * (1 + threshold)
+        list_to_remove = df_var[(df_var > lower_bound) & (df_var < upper_bound)].index.to_list()
+        return list_to_remove
+\end{lstlisting}
+
+\begin{lstlisting}[label=del_cov, caption={Выбор признаков по ковариации}]
+    def to_del_by_covariance(df: pd.DataFrame):
+        threshold = 0.6
+        df_cov = df.cov().abs()
+        df_cov = df_cov.where(np.tril(df_cov, k=-1) > threshold)
+        to_drop = set()
+        for col in df_cov.columns:
+            if col not in to_drop:
+                correlated_features = df_cov[col].dropna().index
+                to_drop.update(correlated_features.difference([col]))
+        return to_drop
+\end{lstlisting}
+
+\begin{lstlisting}[label=del_pearson, caption={Выбор признаков по Пирсону}]
+    threshold = 0.99
+    df_pearson = df.corr(method='pearson').abs()
+    df_pearson = df_pearson.where(np.tril(df_pearson, k=-1) > threshold)
+    to_drop = set()
+    for col in df_pearson.columns:
+        if col not in to_drop:
+            correlated_features = df_pearson[col].dropna().index
+            to_drop.update(correlated_features.difference([col]))
+    return to_drop
+\end{lstlisting}
+
+\begin{lstlisting}[label=del_spearman, caption={Выбор признаков по Спирмену}]
+    threshold = 0.99
+    df_pearson = df.corr(method='pearson').abs()
+    df_pearson = df_pearson.where(np.tril(df_pearson, k=-1) > threshold)
+    to_drop = set()
+    for col in df_pearson.columns:
+        if col not in to_drop:
+            correlated_features = df_pearson[col].dropna().index
+            to_drop.update(correlated_features.difference([col]))
+    return to_drop
+\end{lstlisting}
+
+\section{Получение результатов}
+
+\begin{lstlisting}[label=build_heatmaps, caption={Построение тепловых карт}]
+    def build_heatmap(data, savepath, xlables, ylabels):
+        plt.figure(figsize=(19.2, 10.8))
+        sea.heatmap(data, xticklabels=xlables, yticklabels=ylabels, square=True, linewidths=.3, cmap="YlGnBu")
+        plt.savefig(savepath, dpi=100)
+        plt.clf()
+\end{lstlisting}
+
+\begin{lstlisting}[label=get_res, caption={Внесение измений и построение тепловых карт}]
+    to_drop_by_dispersion = determining.to_del_by_dispersion(df)
+    vectors_updated_dispersion = np.delete(vectors, list(to_drop_by_dispersion), axis=1)
+    pearson_matrix, cosine_matrix, jac_matrix = get_corr_matrix(vectors_updated_dispersion)
+    build_heatmap(pearson_matrix, RES_DIR / "Heatmap_dispersion_pearson.png", files, files)
+    build_heatmap(cosine_matrix, RES_DIR / "Heatmap_dispersion_cosine.png", files, files)
+    build_heatmap(jac_matrix, RES_DIR / "Heatmap_dispersion_jac.png", files, files)
+
+    to_drop_by_mean = determining.to_del_by_mean(df)
+    vectors_updated_mean = np.delete(vectors, list(to_drop_by_mean), axis=1)
+    pearson_matrix, cosine_matrix, jac_matrix = get_corr_matrix(vectors_updated_mean)
+    build_heatmap(pearson_matrix, RES_DIR / "Heatmap_mean_pearson.png", files, files)
+    build_heatmap(cosine_matrix, RES_DIR / "Heatmap_mean_cosine.png", files, files)
+    build_heatmap(jac_matrix, RES_DIR / "Heatmap_mean_jac.png", files, files)
+
+    to_drop_by_covariance = determining.to_del_by_covariance(df)
+    vectors_updated_covariance = np.delete(vectors, list(to_drop_by_covariance), axis=1)
+    pearson_matrix, cosine_matrix, jac_matrix = get_corr_matrix(vectors_updated_covariance)
+    build_heatmap(pearson_matrix, RES_DIR / "Heatmap_covariance_pearson.png", files, files)
+    build_heatmap(cosine_matrix, RES_DIR / "Heatmap_covariance_cosine.png", files, files)
+    build_heatmap(jac_matrix, RES_DIR / "Heatmap_covariance_jac.png", files, files)
+
+    to_drop_by_pearson = determining.to_del_by_pearson(df)
+    vectors_updated_pearson = np.delete(vectors, list(to_drop_by_pearson), axis=1)
+    pearson_matrix, cosine_matrix, jac_matrix = get_corr_matrix(vectors_updated_pearson)
+    build_heatmap(pearson_matrix, RES_DIR / "Heatmap_pearson_pearson.png", files, files)
+    build_heatmap(cosine_matrix, RES_DIR / "Heatmap_pearson_cosine.png", files, files)
+    build_heatmap(jac_matrix, RES_DIR / "Heatmap_pearson_jac.png", files, files)
+
+    to_drop_by_spearman = determining.to_del_by_spearman(df)
+    vectors_updated_spearman = np.delete(vectors, list(to_drop_by_spearman), axis=1)
+    pearson_matrix, cosine_matrix, jac_matrix = get_corr_matrix(vectors_updated_spearman)
+    build_heatmap(pearson_matrix, RES_DIR / "Heatmap_spearman_pearson.png", files, files)
+    build_heatmap(cosine_matrix, RES_DIR / "Heatmap_spearman_cosine.png", files, files)
+    build_heatmap(jac_matrix, RES_DIR / "Heatmap_spearman_jac.png", files, files)
+\end{lstlisting}
+
+\section*{Вывод}
+
+В технологической части были разработаны и реализованы программные методы для автоматизированного отбора признаков и анализа близости документов.
+Методы для отбора признаков включают вычисления на основе математического ожидания, дисперсии, ковариации, а также корреляций по Пирсону и Спирмену. 
+Эти методы позволили выявить малозначимые и дублирующие признаки, которые затем исключались из векторов документов для повышения точности анализа.
+
+На завершающем этапе была построена матрица корреляции и визуализированы тепловые карты взаимосвязей между документами,
+что позволило наглядно представить результаты отбора признаков и оценить качество полученных данных.
+
+\clearpage
