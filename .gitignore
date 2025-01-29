@@ -1,0 +1,11 @@
+*.exe
+*.o
+*.vscode*
+*func_tests*
+*.zip
+*.pptx
+*.json
+*.docx
+*.dot
+*.png
+*materials*
