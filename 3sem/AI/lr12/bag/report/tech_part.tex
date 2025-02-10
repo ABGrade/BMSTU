@@ -1,12 +1,15 @@
 \chapter{Технологическая часть}
 
-\section{Средства написания программы}
+\section{Выбор языка и среды программирования}
 Для реализации программного обеспечения были использованы следующие средства:
 
 \begin{itemize}
     \item cреда разработки PyCharm 2023 community edition \cite{lib:pycharm};
     \item язык разработки Python 3.12 \cite{lib:python}.
 \end{itemize}
+
+Выбор языка программирования Python 3.12 обоснован наличием все необходимых библиотек для выполнения поставленных задач.
+Среда разработки Pycharm 2023 community edition выбрана для написания и отладки кода.
 	
 Используемые библиотеки:
 \begin{itemize}
@@ -19,6 +22,8 @@
 \end{itemize}
 
 \section{Программная реализация}
+
+В листинге \ref{init} представлен код, который выполняет подготовительные действия для обучения модели с подкреплением.
 
 \begin{lstlisting}[label=init, caption={Инициализация}]
 import gymnasium as gym
@@ -36,9 +41,8 @@ env = gym.make('AdroitHandHammer-v1', render_mode="rgb_array")
 env = RecordVideo(env, str(VID_DIR), episode_trigger=lambda e: True)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 \end{lstlisting}
-Этот код выполняет подготовительные действия для обучения модели с подкреплением. 
-Сначала подключаются необходимые инструменты.
 
+Сначала подключаются необходимые инструменты.
 Затем определяются пути к рабочим директориям, где будут сохраняться изображения и видео. 
 Создается среда обучения под названием AdroitHandHammer-v1, 
 в которой агент будет управлять роботизированной рукой, чтобы забить гвоздь молотком. 
@@ -46,7 +50,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 Дополнительно включается запись видео, причем записываться будет каждый эпизод взаимодействия агента со средой.
 Наконец, определяется, какое устройство будет использоваться для вычислений: графический процессор, если он доступен, или центральный процессор в противном случае.
 
-\begin{lstlisting}[label=init, caption={Обучение модели и настройки колбэка}]
+В листинге \ref{callback} представлен код, который выполняет обучение модели с подкреплением и настройку обратного вызова.
+\begin{lstlisting}[label=callback, caption={Обучение модели и настройки колбэка}]
     class TrainingMonitorCallback(BaseCallback):
         def __init__(self, verbose=0):
             super().__init__(verbose)
@@ -61,44 +66,50 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
     model.learn(total_timesteps=total_timesteps, callback=callback)
     model.save("ppo_adroit_hammer")
 \end{lstlisting}
-Создается колбэк, предназначенный для сбора данных о наградах (rewards) в процессе обучения.
+
+Создается обратный вызов, предназначенная для сбора данных о наградах (rewards) в процессе обучения.
 Модель PPO с политикой \textit{MlpPolicy} обучается в среде env в течение 1 000 000 временных шагов. 
 Колбэк \textit{TrainingMonitorCallback} добавляется в процесс обучения для мониторинга.
 На каждом шаге обучения колбэк проверяет наличие переменной \textit{rewards} в локальных переменных и, 
 если она существует, добавляет ее значение в список.
 После завершения обучения модель сохраняется в файл \textit{ppo\_adroit\_hammer}. 
 
-\begin{lstlisting}[label=init, caption={Тестирование}]
+В листинге \ref{test} представлен код, который выполняет тестирование модели с подкреплением.
+\begin{lstlisting}[label=test, caption={Тестирование}]
     obs, _ = env.reset()
-    while True:
+    done, truncated = False, False
+    while not (done or truncated):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, truncated, _ = env.step(action)
         print(f"REWARD: {reward}")
-        if done or truncated:
-            obs, _ = env.reset()
-            break
+    obs, _ = env.reset()
 \end{lstlisting}
+
 Окружение сбрасывается в начальное состояние.
 Начинается цикл взаимодействия модели с окружением, который продолжается до тех пор, 
 пока эпизод не завершится или не будет прерван.
-Модель, на основе текущего наблюдения, предсказывает действие. 
+Модель на основе текущего наблюдения предсказывает действие. 
 Выбранное действие применяется в среде. 
 Метод \textit{step} возвращает новое наблюдение, награду, флаги завершения и прерывания.
 Значение полученной награды выводится на печать.
 Если эпизод завершился или был прерван, среда сбрасывается, и цикл прерывается.
 
-\section{Результаты}
+\section{Тестирование и результаты}
 
-График \ref{fig:training_rewards} демонстрирует успешное обучение модели PPO в среде AdroitHandHammer-v1. 
+В ходе обучения модель выполнила 1 000 000 шагов.
+На графике \ref{fig:training_rewards} отображен процесс получения наград агентом в ходе обучения.
+На оси абсцисс отложено количествово шагов обучения, а по оси ординат полученная суммарная награда к данному количеству шагов.
+На графике прослеживается успешное обучение модели PPO в среде AdroitHandHammer-v1. 
 Начав с периода исследования и низких наград, агент постепенно вырабатывает эффективную стратегию, 
 что отражается в значительном и продолжительном росте суммарной награды на протяжении большей части процесса обучения. 
 Это свидетельствует о том, что модель научилась успешно управлять рукой-роботом для выполнения задачи забивания гвоздя.
 
-Рисунки \ref{fig:work1} и \ref{fig:work2} демонстрируют, как агент успешно применяет полученную стратегию для выполнения задачи.
+Модель была протестирована на 500 итерациях.
+На рисунке \ref{fig:work} показана визуализация успешного выполнения работы агента в среде AdroitHandHammer-v1.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\textwidth]{C:/MGTU/baseAI/lr12/lr12/bag/report/images/training\_rewards.png}
+    \includegraphics[width=1\textwidth]{C:/MGTU/BMSTU/3sem/AI/lr12/bag/report/images/reward.jpg}
     \caption{Полученные награды в процессе обучения}
     \label{fig:training_rewards}
 \end{figure}
@@ -108,16 +119,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
     \begin{minipage}[H]{0.49\linewidth}
         \centering
         \includegraphics[width=1\linewidth]{C:/MGTU/baseAI/lr12/lr12/bag/report/images/begin.png}
-        \caption*{а) Начало}
+        \caption*{a)}
     \end{minipage}
     \hfill
     \begin{minipage}[H]{0.48\linewidth}
         \centering
         \includegraphics[width=0.99\linewidth]{C:/MGTU/baseAI/lr12/lr12/bag/report/images/took\_hammer.png}
-        \caption*{б) Взятие молотка}
+        \caption*{б)}
     \end{minipage}
-    \caption{Визуализация работы агента 1}
-    \label{fig:work1}
 \end{figure}
 
 \begin{figure}[H]
@@ -125,23 +134,23 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
     \begin{minipage}[H]{0.48\linewidth}
       \centering
       \includegraphics[width=80mm, height=60mm]{C:/MGTU/baseAI/lr12/lr12/bag/report/images/near_gvodz.png}
-      \caption*{в) Молоток возле гвоздя}
+      \caption*{в)}
     \end{minipage}
     \hfill
     \begin{minipage}[H]{0.48\linewidth}
       \centering
       \includegraphics[width=80mm, height=60mm]{C:/MGTU/baseAI/lr12/lr12/bag/report/images/end.png}
-      \caption*{г) Конец}
+      \caption*{г)}
     \end{minipage}
-    \caption{Визуализация работы агента 2}
-    \label{fig:work2}
+    \caption{Визуализация работы агента: а) начало; б) поднятие молотка; в) молоток возле гвоздя; г) конец}
+    \label{fig:work}
   \end{figure}
 
 \section*{Вывод}
 
-В ходе тестирования модель была успешно обучена на среде AdroitHandHammer-v1. 
+В ходе технологической части модель была успешно обучена для решения задачи AdroitHand - Hammer-v1. 
 Эта модель может быть использована для управления рукой-роботом, чтобы выполнить задачу забивания гвоздя.
-График демонстрирует, что модель успешно вырабатывает эффективную стратегию для выполнения задачи, 
-а рисунки демонстрируют, как агент успешно применяет полученную стратегию для выполнения задачи.
+Анализ процесса обучения модели показал, что модель успешно вырабатывает эффективную стратегию для выполнения задачи, 
+а тестирование доказало на практике, что агент успешно применяет полученную стратегию для выполнения задачи.
 
 \clearpage
