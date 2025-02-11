@@ -4,7 +4,7 @@ import itertools
 from classes import *
 
 EPS = 1e-6
-TRIANGLE_POITS = 3
+TRIANGLE_POINTS = 3
 
 def calc_angle_between_line_and_x(p1 : Point, p2 : Point) -> float:
     dx = p2.x - p1.x
@@ -16,7 +16,28 @@ def calc_angle_between_line_and_x(p1 : Point, p2 : Point) -> float:
     return angle
 
 
-def find_best_combination(points : [Point]):
+def find_best_combination(points):
     best_angle = None
-    best_pairs = None
-    for pairs in itertools.combinations(points, TRIANGLE_POITS):
+    best_pair = None
+
+    len_points = len(points)
+    for tr1_indices in itertools.combinations(range(len_points), 3):
+        try:
+            tr1 = Triangle(points[tr1_indices[0]], points[tr1_indices[1]], points[tr1_indices[2]])
+        except ValueError:
+            continue
+        remain = [i for i in range(len_points) if i not in tr1_indices]
+
+        for tr2_indices in itertools.combinations(range(len(remain)), 3):
+            try:
+                tr2 = Triangle(points[tr2_indices[0]], points[tr2_indices[1]], points[tr2_indices[2]])
+            except ValueError:
+                continue
+            angle = calc_angle_between_line_and_x(tr1.incenter, tr2.incenter)
+            if best_angle is None:
+                best_angle = angle
+                best_pair = (tr1, tr2)
+            elif angle > best_angle:
+                best_angle = angle
+                best_pair = (tr1, tr2)
+    return best_pair, best_angle

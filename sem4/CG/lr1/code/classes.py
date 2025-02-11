@@ -6,7 +6,7 @@ class Point:
         self.y = y
         self.index = index
 
-    def __eq__(self, other : "Point"):
+    def __eq__(self, other : "Point") -> bool:
         return self.x == other.x and self.y == other.y
 
     def __str__(self):
@@ -32,7 +32,7 @@ class Triangle:
         return (f"a = {self.a}\n"
                 f"b = {self.b}\n"
                 f"c = {self.c}\n"
-                f"area = {self.area()}")
+                f"area = {self.area()}\n")
 
     def area(self) -> float:
         return 0.5 * abs((self.a.x * (self.b.y - self.c.y) +
