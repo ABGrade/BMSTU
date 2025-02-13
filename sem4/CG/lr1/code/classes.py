@@ -19,35 +19,51 @@ class Point:
         return math.sqrt((dx ** 2 + dy ** 2))
 
 
+class Circle:
+    def __init__(self, point : Point, r=0.0):
+        self.coord = point
+        self.r = r
+
+    def __str__(self):
+        return f"{self.coord}, r = {self.r}"
+
+
 class Triangle:
     def __init__(self, a : Point, b : Point, c : Point):
         self.a = a
         self.b = b
         self.c = c
+
+        self.area = self.calc_area()
+
         if not self.is_exist():
             raise ValueError("Треугольник не может существовать с выбранными точками")
-        self.incenter = self.find_incenter()
+        self.inner_circle = self.find_incenter()
 
     def __str__(self):
         return (f"a = {self.a}\n"
                 f"b = {self.b}\n"
                 f"c = {self.c}\n"
-                f"area = {self.area()}\n")
+                f"area = {self.area}\n")
 
-    def area(self) -> float:
+    def calc_area(self) -> float:
         return 0.5 * abs((self.a.x * (self.b.y - self.c.y) +
                          self.b.x * (self.c.y - self.a.y) +
                          self.c.x * (self.a.y - self.b.y)))
 
+
     def is_exist(self) -> bool:
-        return self.area() > 0
+        return self.area > 0
 
 
-    def find_incenter(self) -> Point:
-        la = Point.distance(self.b, self.c)
-        lb = Point.distance(self.a, self.c)
-        lc = Point.distance(self.a, self.b)
-        ix = (la * self.a.x + lb * self.b.x + lc * self.c.x) / (la + lb + lc)
-        iy = (la * self.a.y + lb * self.b.y + lc * self.c.y) / (la + lb + lc)
-        return Point(ix, iy)
+    def find_incenter(self) -> Circle:
+        l_bc = Point.distance(self.b, self.c)
+        l_ac = Point.distance(self.a, self.c)
+        l_ab = Point.distance(self.a, self.b)
+        x = (l_bc * self.a.x + l_ac * self.b.x + l_ab * self.c.x) / (l_bc + l_ac + l_ab)
+        y = (l_bc * self.a.y + l_ac * self.b.y + l_ab * self.c.y) / (l_bc + l_ac + l_ab)
+
+        p = 0.5 * (l_bc + l_ac + l_ab)
+        r = self.area * p
+        return Circle(Point(x, y), r)
 
